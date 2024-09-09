@@ -2,42 +2,37 @@ import { App, Editor, MarkdownView, Modal, Notice, Plugin, PluginSettingTab, Set
 import * as fs from 'fs';
 import * as path from 'path';
 // 写入内容的函数
+// 写入内容的函数
 function WriteContentToHeadMdFile(CurrentHeadmdFilePath: string, CurrentfolderPath: string) {
-    console.log('插桩:.....a.',CurrentfolderPath);
     const rootPath = this.app.vault.adapter.basePath;
     const parentDir = path.dirname(CurrentfolderPath);
-    console.log('插桩:......');
-    // 读取当前文件夹下的所有 .md 文件
+    let contentToWrite = '##### 本章节简介\n';
+    let mkcontentToWrite = '##### 本目录下的文档\n';
+    let foldercontentToWrite = '##### 本目录下的子文件夹\n';
+
+    // 读取当前文件夹下的所有文件和文件夹
     fs.readdir(CurrentfolderPath, { withFileTypes: true }, (err, files) => {
         if (err) {
             console.error('读取文件夹失败:', err);
             return;
         }
 
-        let contentToWrite = '';
+        files.forEach(file => {
+            const filePath = path.join(CurrentfolderPath, file.name);
 
-        // 如果当前文件夹的上一级是根文件夹
-        if (parentDir === rootPath) {
-            // 只添加当前文件夹下的 .md 文件链接
-            files.forEach(file => {
-                if (file.isFile() && path.extname(file.name) === '.md'  ) {
-                    contentToWrite += `\n[[${file.name}]]`;
-                }
-            });
-        } else {
-            // 先添加上一级文件夹的 head_ 文件链接
-            const parentHeadFilePath = path.join(parentDir, 'head_' + path.basename(parentDir) + '.md');
-            if (fs.existsSync(parentHeadFilePath)) {
-                contentToWrite += `##### 上一级文件\n[[${path.basename(parentHeadFilePath, '.md')}]]\n##### 当前目录下的文件`;
+            // 如果是 .md 文件且不是 CurrentHeadmdFilePath 本身
+            if (file.isFile() && path.extname(file.name) === '.md' && filePath !== CurrentHeadmdFilePath) {
+                const fileNameWithoutExt = path.basename(file.name, '.md');
+                mkcontentToWrite += `[[${fileNameWithoutExt}]]\n`;
             }
 
-            // 再添加当前文件夹下的 .md 文件链接
-            files.forEach(file => {
-                if (file.isFile() && path.extname(file.name) === '.md' && file.name !== path.basename(CurrentHeadmdFilePath)) {
-                    contentToWrite += `\n[[${file.name}]]`;
-                }
-            });
-        }
+            // 如果是文件夹
+            if (file.isDirectory()) {
+                foldercontentToWrite += `[[head_${file.name}]]\n`;
+            }
+        });
+
+        contentToWrite = contentToWrite + mkcontentToWrite + foldercontentToWrite;
 
         // 写入内容到当前的 head_ 文件
         fs.writeFile(CurrentHeadmdFilePath, contentToWrite, (err) => {
@@ -49,6 +44,7 @@ function WriteContentToHeadMdFile(CurrentHeadmdFilePath: string, CurrentfolderPa
         });
     });
 }
+
 
 // 定义插件设置的接口，包含一个设置项 `mySetting`
 interface MyPluginSettings {
