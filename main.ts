@@ -1,59 +1,20 @@
 import { App, Editor, MarkdownView, Modal, Notice, Plugin, PluginSettingTab, Setting, TFolder } from 'obsidian';
-import * as fs from 'fs';
+import * as KnowledgeLinker from './MyPlugin';
 import * as path from 'path';
-// 写入内容的函数
-// 写入内容的函数
-function WriteContentToHeadMdFile(CurrentHeadmdFilePath: string, CurrentfolderPath: string) {
-    const rootPath = this.app.vault.adapter.basePath;
-    const parentDir = path.dirname(CurrentfolderPath);
-    let contentToWrite = '##### 本章节简介\n';
-    let mkcontentToWrite = '##### 本目录下的文档\n';
-    let foldercontentToWrite = '##### 本目录下的子文件夹\n';
-
-    // 读取当前文件夹下的所有文件和文件夹
-    fs.readdir(CurrentfolderPath, { withFileTypes: true }, (err, files) => {
-        if (err) {
-            console.error('读取文件夹失败:', err);
-            return;
-        }
-
-        files.forEach(file => {
-            const filePath = path.join(CurrentfolderPath, file.name);
-
-            // 如果是 .md 文件且不是 CurrentHeadmdFilePath 本身
-            if (file.isFile() && path.extname(file.name) === '.md' && filePath !== CurrentHeadmdFilePath) {
-                const fileNameWithoutExt = path.basename(file.name, '.md');
-                mkcontentToWrite += `[[${fileNameWithoutExt}]]\n`;
-            }
-
-            // 如果是文件夹
-            if (file.isDirectory()) {
-                foldercontentToWrite += `[[head_${file.name}]]\n`;
-            }
-        });
-
-        contentToWrite = contentToWrite + mkcontentToWrite + foldercontentToWrite;
-
-        // 写入内容到当前的 head_ 文件
-        fs.writeFile(CurrentHeadmdFilePath, contentToWrite, (err) => {
-            if (err) {
-                console.error('写入内容失败:', err);
-            } else {
-                console.log('写入内容成功:', CurrentHeadmdFilePath);
-            }
-        });
-    });
-}
-
+import * as fs from 'fs';
 
 // 定义插件设置的接口，包含一个设置项 `mySetting`
 interface MyPluginSettings {
     mySetting: string;
+    skipPrefixes: string[];
+    outputDirName: string;
 }
 
 // 设置的默认值，`mySetting` 的初始值为 'default'
 const DEFAULT_SETTINGS: MyPluginSettings = {
-    mySetting: 'default'
+    mySetting: 'default',
+    skipPrefixes: ['1-知识架构汇总', '2-Web图片库'],
+    outputDirName: '1-知识架构汇总'
 }
 
 // 插件的主类，继承自 Obsidian 的 `Plugin` 类
@@ -66,73 +27,18 @@ export default class MyPlugin extends Plugin {
         await this.loadSettings();
 
         const ribbonIconEl = this.addRibbonIcon('dice', 'MakePlugs', async (evt: MouseEvent) => {
-            //头文件的文件名字符串 
-            const HeadMdNameString = "head_"
+            // setupRibbonIcon(this.app);
+            // 使用示例
+            // const rootPath = app.vault.adapter.basePath; // 获取 Obsidian 文档的根路径
+            // const directoryStructure = readDirectoryStructure(rootPath);
+            
+            // console.log('目录结构:', JSON.stringify(directoryStructure, null, 2));
+            const rootPath = app.vault.adapter.basePath;
+            
+            const directoryStructure = KnowledgeLinker.readDirectoryStructure(rootPath, this.settings.skipPrefixes);
+            
+            KnowledgeLinker.generateMdFiles(directoryStructure, this.settings.outputDirName);
 
-
-            // 当用户点击图标时，显示通知
-            new Notice('开始扫描文件夹并创建文件...');
-
-            // 指定要扫描的文件夹路径
-            const folderPath = this.app.vault.adapter.basePath; // 获取 Obsidian 文档的根路径
-
-            // 使用 Node.js 的 fs 模块来读取文件夹内容
-            const fs = require('fs');
-            const path = require('path');
-
-            // 递归函数，用于遍历文件夹并创建对应的 .md 文件
-            const createMdFiles = (currentPath) => {
-                fs.readdir(currentPath, { withFileTypes: true }, (err, files) => {
-                    if (err) {
-                        console.error('读取文件夹失败:', err);
-                        return;
-                    }
-
-                    // 遍历文件夹中的每个文件/文件夹
-                    files.forEach(file => {
-                        const filePath = path.join(currentPath, file.name);
-
-                        // 检查是否是文件夹
-                        if (file.isDirectory()) {
-                            // 跳过以 . 或 Br开头的文件夹
-                            if (file.name.startsWith('.') | file.name.startsWith('Br')) {
-                                console.log('跳过隐藏文件夹:', filePath);
-                                return;
-                            }
-
-                            // 创建以文件夹名命名的 .md 文件
-                            const mdFilePath = path.join(filePath, HeadMdNameString + file.name + '.md');
-                            console.log('创建文件:', mdFilePath);
-                            // 检查是否已经存在对应的 .md 文件
-                            if (!fs.existsSync(mdFilePath)) {
-                                fs.writeFile(mdFilePath, `# ${file.name}`, (err) => {
-                                    if (err) {
-                                        console.error('创建文件失败:', err);
-                                    } else {
-                                        console.log('创建文件成功:', mdFilePath);
-                                    }
-                                });
-                            } else {
-                                console.log('文件已存在:', mdFilePath);
-                            }
-
-                            console.log('调用追加内容的函数:');
-                            // 调用追加内容的函数
-                            const AddContext = HeadMdNameString + file.name;
-                            const CurrentfolderPath = filePath;
-                            const CurrentHeadmdFilePath = mdFilePath;
-                            WriteContentToHeadMdFile(CurrentHeadmdFilePath, CurrentfolderPath);
-
-
-                            // 递归调用，继续处理子文件夹
-                            createMdFiles(filePath);
-                        }
-                    });
-                });
-            };
-
-            // 从根路径开始递归处理
-            createMdFiles(folderPath);
         });
 
         // 为图标添加一个自定义的 CSS 类
@@ -212,15 +118,6 @@ export default class MyPlugin extends Plugin {
             })
         );
 
-        // 监听 Obsidian 的全局事件
-        this.registerDomEvent(document, 'click', (evt: MouseEvent) => {
-            // 检查点击的目标是否是“新建文件夹”按钮
-            const target = evt.target as HTMLElement;
-            if (target.matches('.nav-action-button[aria-label="新建文件夹"]')) {
-                console.log('New folder button clicked');
-            }
-        });
-
         // 注册定时器，当插件禁用时，定时器会自动清除
         this.registerInterval(window.setInterval(() => console.log('setInterval'), 5 * 60 * 1000)); // 每5分钟输出一次日志
     }
@@ -285,6 +182,28 @@ class SampleSettingTab extends PluginSettingTab {
                 .onChange(async (value) => {
                     // 当用户更改设置时，更新插件的设置并保存
                     this.plugin.settings.mySetting = value;
+                    await this.plugin.saveSettings();
+                }));
+
+        new Setting(containerEl)
+            .setName('Skip Prefixes')
+            .setDesc('Comma-separated list of prefixes to skip')
+            .addText(text => text
+                .setPlaceholder('Enter prefixes')
+                .setValue(this.plugin.settings.skipPrefixes.join(', '))
+                .onChange(async (value) => {
+                    this.plugin.settings.skipPrefixes = value.split(',').map(s => s.trim());
+                    await this.plugin.saveSettings();
+                }));
+
+        new Setting(containerEl)
+            .setName('Output Directory')
+            .setDesc('Directory where the markdown files will be generated')
+            .addText(text => text
+                .setPlaceholder('Enter output directory')
+                .setValue(this.plugin.settings.outputDir)
+                .onChange(async (value) => {
+                    this.plugin.settings.outputDir = value.trim();
                     await this.plugin.saveSettings();
                 }));
     }
