@@ -1,125 +1,64 @@
 import { App, Editor, MarkdownView, Modal, Notice, Plugin, PluginSettingTab, Setting, TFolder } from 'obsidian';
-import * as KnowledgeLinker from './MyPlugin';
-import * as path from 'path';
-import * as fs from 'fs';
+import * as KnowledgeLinker from './FolderNodeLink/FolderNodeLink';
+
+// 保存原始的 console.log
+const originalLog = console.log;
+
+// 关闭 console.log
+console.log = function() {};
+
+// 恢复 console.log
+console.log = originalLog;
+
 
 // 定义插件设置的接口，包含一个设置项 `mySetting`
-interface MyPluginSettings {
-    mySetting: string;
-    skipPrefixes: string[];
+export interface PluginSettings {
+    knowledgeSummary: string;
+    subKnowledgePoints: string;
+    knowledgeDocuments: string;
+    skipSpecificNames: string[];
     outputDirName: string;
 }
 
 // 设置的默认值，`mySetting` 的初始值为 'default'
-const DEFAULT_SETTINGS: MyPluginSettings = {
-    mySetting: 'default',
-    skipPrefixes: ['1-知识架构汇总', '2-Web图片库'],
-    outputDirName: '1-知识架构汇总'
-}
+const DEFAULT_SETTINGS: PluginSettings = {
+    knowledgeSummary: "# 知识汇总",
+    subKnowledgePoints: "# relationship 子知识点",
+    knowledgeDocuments: "# relationship 知识文档",
+    skipSpecificNames: ['图片库','未命名'],
+    outputDirName: "0-知识库汇总"
+};
+
 
 // 插件的主类，继承自 Obsidian 的 `Plugin` 类
 export default class MyPlugin extends Plugin {
-    settings: MyPluginSettings;
+    settings: PluginSettings;
 
     // 插件加载时调用
     async onload() {
         // 加载插件的设置
         await this.loadSettings();
 
-        const ribbonIconEl = this.addRibbonIcon('dice', 'MakePlugs', async (evt: MouseEvent) => {
-            // setupRibbonIcon(this.app);
-            // 使用示例
-            // const rootPath = app.vault.adapter.basePath; // 获取 Obsidian 文档的根路径
-            // const directoryStructure = readDirectoryStructure(rootPath);
-            
-            // console.log('目录结构:', JSON.stringify(directoryStructure, null, 2));
-            const rootPath = app.vault.adapter.basePath;
-            
-            const directoryStructure = KnowledgeLinker.readDirectoryStructure(rootPath, this.settings.skipPrefixes);
-            
-            KnowledgeLinker.generateMdFiles(directoryStructure, this.settings.outputDirName);
+        // 通过全局对象传递设置
+        (window as any).pluginSettings = this.settings;
 
-        });
-
-        // 为图标添加一个自定义的 CSS 类
-        ribbonIconEl.addClass('my-plugin-ribbon-class');
-
-        // 在应用的底部状态栏添加一个状态项（仅桌面应用有效）
-        const statusBarItemEl = this.addStatusBarItem();
-        statusBarItemEl.setText('Status Bar Text'); // 设置状态栏的文字
-
-        // 添加一个简单的命令，可以从命令面板中触发
-        this.addCommand({
-            id: 'open-sample-modal-simple', // 命令的唯一 ID
-            name: 'Open sample modal (simple)', // 命令的名称
-            callback: () => {
-                // 触发时打开一个模态窗口
-                new SampleModal(this.app).open();
-            }
-        });
-
-        // 添加一个编辑器命令，可以操作当前编辑器实例
-        this.addCommand({
-            id: 'sample-editor-command', // 命令的唯一 ID
-            name: 'Sample editor command', // 命令的名称
-            editorCallback: (editor: Editor, view: MarkdownView) => {
-                // 打印选中的文本，并将其替换为 'Sample Editor Command'
-                console.log(editor.getSelection());
-                editor.replaceSelection('Sample Editor Command');
-            }
-        });
-
-        // 添加一个复杂的命令，只有满足特定条件时才会显示
-        this.addCommand({
-            id: 'open-sample-modal-complex', // 命令的唯一 ID
-            name: 'Open sample modal (complex)', // 命令的名称
-            checkCallback: (checking: boolean) => {
-                // 获取当前活动的 Markdown 视图
-                const markdownView = this.app.workspace.getActiveViewOfType(MarkdownView);
-                if (markdownView) {
-                    // 如果 `checking` 为 true，表示只检查命令是否可用
-                    // 如果 `checking` 为 false，执行命令操作
-                    if (!checking) {
-                        new SampleModal(this.app).open(); // 打开模态窗口
-                    }
-
-                    // 返回 true 表示命令可用，显示在命令面板中
-                    return true;
-                }
-            }
-        });
+        //为文件目录的菜单添加功能
+        this.registerEvent(
+            this.app.workspace.on("file-menu", (menu, file) => {
+                //创建知识架构汇总菜单
+              menu.addItem((item) => {
+                item
+                  .setTitle("创建知识架构汇总👈") //设置标题
+                  .setIcon("archive-restore")    //设置图标
+                  .onClick(async () => {
+                    KnowledgeLinker.CreateKnowledgeStructureSummary(file)
+                  });
+              });
+            })
+        );
 
         // 添加设置标签页，用户可以在插件设置中修改参数
-        this.addSettingTab(new SampleSettingTab(this.app, this));
-
-        // 如果插件监听全局的 DOM 事件，可以在此注册
-        // 当插件禁用时，事件监听器会自动移除
-        // this.registerDomEvent(document, 'click', (evt: MouseEvent) => {
-        //     console.log('click  ---asd', evt); // 点击事件处理函数
-        // });
-
-        this.registerEvent(
-            this.app.vault.on('create', (file) => {
-                if (file instanceof TFolder) {
-                    console.log('Folder created ---', file.path);
-                } else {
-                    console.log('File created ---', file.path);
-                }
-            })
-        );
-
-        this.registerEvent(
-            this.app.vault.on('rename', (file, oldPath) => {
-                if (file instanceof TFolder) {
-                    console.log('Folder renamed ---', oldPath, 'to', file.path);
-                } else {
-                    console.log('File renamed ---', oldPath, 'to', file.path);
-                }
-            })
-        );
-
-        // 注册定时器，当插件禁用时，定时器会自动清除
-        this.registerInterval(window.setInterval(() => console.log('setInterval'), 5 * 60 * 1000)); // 每5分钟输出一次日志
+        this.addSettingTab(new MyPluginSettingsTab(this.app, this));
     }
 
     // 插件卸载时调用
@@ -158,53 +97,80 @@ class SampleModal extends Modal {
 }
 
 // 自定义设置页面，继承自 Obsidian 的 `PluginSettingTab`
-class SampleSettingTab extends PluginSettingTab {
+class MyPluginSettingsTab extends PluginSettingTab {
     plugin: MyPlugin;
 
     constructor(app: App, plugin: MyPlugin) {
         super(app, plugin);
-        this.plugin = plugin; // 保存插件实例的引用
+        this.plugin = plugin;
     }
 
-    // 设置页面的渲染逻辑
     display(): void {
         const { containerEl } = this;
-
-        containerEl.empty(); // 清空当前的设置页面内容
-
-        // 创建第一个设置项
+        const isChinese = navigator.language.startsWith('zh');
+    
+        containerEl.empty();
+        containerEl.createEl('h2', { text: isChinese ? '知识汇总插件设置' : 'Knowledge Summary Plugin Settings' });
+    
+        // Knowledge Summary 部分
         new Setting(containerEl)
-            .setName('Setting #1') // 设置项的名称
-            .setDesc('It\'s a secret') // 设置项的描述
+            .setName(isChinese ? '知识汇总' : 'Knowledge Summary')
+            .setDesc(isChinese ? '知识汇总部分的文本' : 'Text for the knowledge summary section')
             .addText(text => text
-                .setPlaceholder('Enter your secret') // 输入框的占位符
-                .setValue(this.plugin.settings.mySetting) // 设置输入框的初始值
+                .setPlaceholder(isChinese ? '输入知识汇总文本' : 'Enter knowledge summary text')
+                .setValue(this.plugin.settings.knowledgeSummary)
                 .onChange(async (value) => {
-                    // 当用户更改设置时，更新插件的设置并保存
-                    this.plugin.settings.mySetting = value;
+                    this.plugin.settings.knowledgeSummary = value;
                     await this.plugin.saveSettings();
                 }));
-
+    
+        // Relationship 子知识点部分
         new Setting(containerEl)
-            .setName('Skip Prefixes')
-            .setDesc('Comma-separated list of prefixes to skip')
+            .setName(isChinese ? 'Relationship 子知识点' : 'Relationship Sub Knowledge Points')
+            .setDesc(isChinese ? 'Relationship 子知识点部分的文本' : 'Text for the relationship sub-knowledge points section')
             .addText(text => text
-                .setPlaceholder('Enter prefixes')
-                .setValue(this.plugin.settings.skipPrefixes.join(', '))
+                .setPlaceholder(isChinese ? '输入 Relationship 子知识点文本' : 'Enter relationship sub-knowledge points text')
+                .setValue(this.plugin.settings.subKnowledgePoints)
                 .onChange(async (value) => {
-                    this.plugin.settings.skipPrefixes = value.split(',').map(s => s.trim());
+                    this.plugin.settings.subKnowledgePoints = value;
                     await this.plugin.saveSettings();
                 }));
-
+    
+        // Relationship 知识文档部分
         new Setting(containerEl)
-            .setName('Output Directory')
-            .setDesc('Directory where the markdown files will be generated')
+            .setName(isChinese ? 'Relationship 知识文档' : 'Relationship Knowledge Documents')
+            .setDesc(isChinese ? 'Relationship 知识文档部分的文本' : 'Text for the relationship knowledge documents section')
             .addText(text => text
-                .setPlaceholder('Enter output directory')
-                .setValue(this.plugin.settings.outputDir)
+                .setPlaceholder(isChinese ? '输入 Relationship 知识文档文本' : 'Enter relationship knowledge documents text')
+                .setValue(this.plugin.settings.knowledgeDocuments)
                 .onChange(async (value) => {
-                    this.plugin.settings.outputDir = value.trim();
+                    this.plugin.settings.knowledgeDocuments = value;
+                    await this.plugin.saveSettings();
+                }));
+    
+        // Skip Specific Folder Names (跳过特定名称的文件夹)
+        new Setting(containerEl)
+            .setName(isChinese ? '跳过特定文件夹名称' : 'Skip Specific Folder Names')
+            .setDesc(isChinese ? '处理过程中将跳过具有这些名称的文件夹' : 'Folders with these names will be skipped during processing')
+            .addTextArea(textArea => textArea
+                .setPlaceholder(isChinese ? '输入用逗号分隔的文件夹名称' : 'Enter folder names separated by commas')
+                .setValue(this.plugin.settings.skipSpecificNames.join(','))
+                .onChange(async (value) => {
+                    this.plugin.settings.skipSpecificNames = value.split(',').map(name => name.trim());
+                    await this.plugin.saveSettings();
+                }));
+    
+        // Output Directory Name (输出文件夹名称)
+        new Setting(containerEl)
+            .setName(isChinese ? '输出文件夹名称' : 'Output Directory Name')
+            .setDesc(isChinese ? '将生成摘要文件的目录名称' : 'Name of the directory where the summary files will be created')
+            .addText(text => text
+                .setPlaceholder(isChinese ? '输入输出目录名称' : 'Enter the output directory name')
+                .setValue(this.plugin.settings.outputDirName)
+                .onChange(async (value) => {
+                    this.plugin.settings.outputDirName = value;
                     await this.plugin.saveSettings();
                 }));
     }
 }
+

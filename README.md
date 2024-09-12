@@ -1,95 +1,148 @@
-# Obsidian 示例插件
+# Answer
 
-这是一个为 Obsidian（https://obsidian.md）开发的示例插件。
+这个错误的原因是 `main` 模块中没有导出名为 `PluginSettings` 的成员。错误信息建议你尝试使用 `import PluginSettings from "main"`，这意味着 `PluginSettings` 可能是一个默认导出的对象，而不是命名导出。
 
-该项目使用 TypeScript 提供类型检查和文档注释。仓库依赖于最新的插件 API（obsidian.d.ts）的 TypeScript 定义格式，其中包含 TSDoc 注释，描述了它的功能。
+### 解决方案
 
-**注意：** Obsidian API 仍处于早期 alpha 版本，可能随时会发生变化！
+1. **检查 `main` 模块的导出**：
+   首先，你需要检查 `main` 模块的代码，确认 `PluginSettings` 是如何导出的。如果 `PluginSettings` 是默认导出，那么你应该使用默认导入语法：
 
-此示例插件演示了插件 API 可以执行的一些基本功能：
-- 添加一个侧边栏图标，点击时显示一个通知。
-- 添加一个命令 "Open Sample Modal"，用于打开一个模态框。
-- 在设置页面中添加一个插件设置标签。
-- 注册一个全局点击事件，并在控制台输出 "click"。
-- 注册一个全局间隔事件，并每隔一段时间在控制台输出 "setInterval"。
+   ```typescript
+   import PluginSettings from 'main';
+   ```
 
-## 第一次开发插件？
+2. **如果 `PluginSettings` 是命名导出**：
+   如果 `PluginSettings` 是命名导出，那么你需要确保在导入时使用正确的命名导出语法：
 
-为新插件开发者提供的快速入门指南：
+   ```typescript
+   import { PluginSettings } from 'main';
+   ```
 
-- 检查是否已有[类似插件](https://obsidian.md/plugins)！可能已经有一个足够相似的插件，你可以与开发者合作。
-- 使用 “Use this template” 按钮复制这个仓库作为模板（如果你没看到该按钮，请先登录 GitHub）。
-- 将你的仓库克隆到本地开发文件夹。为了方便，你可以将此文件夹放置在 `.obsidian/plugins/your-plugin-name` 目录中。
-- 安装 NodeJS，然后在仓库文件夹下的命令行中运行 `npm i`。
-- 运行 `npm run dev` 将 `main.ts` 编译成 `main.js`。
-- 修改 `main.ts`（或创建新的 `.ts` 文件）。这些更改将自动编译到 `main.js` 中。
-- 重新加载 Obsidian 以加载插件的新版。
-- 在设置窗口中启用插件。
-- 如需更新 Obsidian API，请在仓库文件夹的命令行中运行 `npm update`。
+   如果 `main` 模块中没有 `PluginSettings` 的命名导出，那么你需要修改 `main` 模块的导出部分，或者在导入时使用正确的名称。
 
-## 发布新版本
+3. **检查模块路径**：
+   确保 `main` 模块的路径是正确的，并且模块确实存在。如果路径不正确，可能会导致找不到模块或导出成员。
 
-- 更新 `manifest.json` 中的新版本号，例如 `1.0.1`，以及最新版本需要的最低 Obsidian 版本。
-- 更新 `versions.json` 文件，格式为 `"new-plugin-version": "minimum-obsidian-version"`，这样较旧版本的 Obsidian 可以下载与你的插件兼容的旧版本。
-- 使用新版本号创建一个新的 GitHub 发布（"Tag version" 中使用确切的版本号，不要包含前缀 `v`）。可以参考示例：https://github.com/obsidianmd/obsidian-sample-plugin/releases
-- 将 `manifest.json`、`main.js` 和 `styles.css` 文件作为二进制附件上传。注意：`manifest.json` 文件必须在两个地方，一是在仓库根目录，二是在发布版本中。
-- 发布新版本。
+### 示例
 
-> 你可以通过运行 `npm version patch`、`npm version minor` 或 `npm version major` 来简化版本号的升级过程。更新 `manifest.json` 中的 `minAppVersion` 后，命令会自动更新 `manifest.json` 和 `package.json` 中的版本号，并将新版本的条目添加到 `versions.json`。
+假设 `main` 模块的代码如下：
 
-## 将插件添加到社区插件列表
-
-- 查看[插件指南](https://docs.obsidian.md/Plugins/Releasing/Plugin+guidelines)。
-- 发布一个初始版本。
-- 确保在你的仓库根目录中有一个 `README.md` 文件。
-- 提交拉取请求至 https://github.com/obsidianmd/obsidian-releases 以添加你的插件。
-
-## 使用方法
-
-- 克隆此仓库。
-- 确保你的 NodeJS 版本至少为 v16（运行 `node --version` 检查）。
-- 运行 `npm i` 或 `yarn` 来安装依赖。
-- 运行 `npm run dev` 启动编译并进入监视模式。
-
-## 手动安装插件
-
-- 将 `main.js`、`styles.css`、`manifest.json` 复制到你的库 `VaultFolder/.obsidian/plugins/your-plugin-id/` 目录下。
-
-## 使用 eslint 提升代码质量（可选）
-
-- [ESLint](https://eslint.org/) 是一个代码分析工具，用于快速查找问题。你可以使用 ESLint 来扫描你的插件代码，发现常见的错误并改善代码质量。
-- 要在此项目中使用 eslint，请首先在终端中安装 eslint：
-  - `npm install -g eslint`
-- 要使用 eslint 分析此项目，使用以下命令：
-  - `eslint main.ts`
-  - eslint 将创建一个包含按文件和行号排列的代码改进建议的报告。
-- 如果你的源代码位于文件夹中，例如 `src`，可以使用以下命令分析文件夹中的所有文件：
-  - `eslint .\src\`
-
-## 捐赠链接
-
-你可以添加捐赠链接，让使用你插件的人支持你的开发工作。
-
-简单的方法是将 `manifest.json` 文件中的 `fundingUrl` 字段设置为你的捐赠链接：
-
-```json
-{
-    "fundingUrl": "https://buymeacoffee.com"
+```typescript
+// main.ts
+export default class PluginSettings {
+    // 类的定义
 }
 ```
 
-如果你有多个链接，你可以这样设置：
+那么你应该使用默认导入：
 
-```json
-{
-    "fundingUrl": {
-        "Buy Me a Coffee": "https://buymeacoffee.com",
-        "GitHub Sponsor": "https://github.com/sponsors",
-        "Patreon": "https://www.patreon.com/"
+```typescript
+import PluginSettings from 'main';
+```
+
+如果 `main` 模块的代码如下：
+
+```typescript
+// main.ts
+export class PluginSettings {
+    // 类的定义
+}
+```
+
+那么你应该使用命名导入：
+
+```typescript
+import { PluginSettings } from 'main';
+```
+
+### 总结
+
+- 如果 `PluginSettings` 是默认导出，使用 `import PluginSettings from 'main';`。
+- 如果 `PluginSettings` 是命名导出，使用 `import { PluginSettings } from 'main';`。
+- 确保模块路径正确，并且模块中确实存在相应的导出。
+
+# Question
+
+根据我的代码,帮我写一下这个插件的Readme
+
+# Answer
+
+### Obsidian 插件：FolderNodeLink
+
+#### 简介
+FolderNodeLink 是一个 Obsidian 插件，旨在帮助用户自动生成和管理知识库的目录结构。该插件通过递归读取文件夹及其子文件夹的文件，生成对应的 Markdown 文件，并维护知识库的汇总结构。
+
+#### 功能特点
+- **自动生成目录结构**：插件会自动读取指定文件夹及其子文件夹的结构，并生成对应的 Markdown 文件。
+- **跳过特定文件/文件夹**：用户可以配置跳过包含特定字符串的文件或文件夹。
+- **维护知识库汇总**：插件会自动创建和更新知识库汇总文件夹，并生成相应的 Markdown 文件。
+
+#### 安装方法
+1. 下载插件文件夹 `FolderNodeLink` 并将其放置在 Obsidian 的插件目录中（通常位于 `.obsidian/plugins/` 下）。
+2. 在 Obsidian 中启用插件。
+
+#### 使用说明
+1. **初始化知识架构汇总环境**：
+   - 插件会自动检查当前文件的父级目录，并根据配置创建知识库汇总文件夹。
+   - 如果当前文件的父级目录为根目录，插件会创建一个名为 `知识库汇总` 的文件夹。
+
+2. **生成目录结构**：
+   - 插件会递归读取当前文件夹及其子文件夹的结构，并生成对应的 Markdown 文件。
+   - 生成的 Markdown 文件会包含子知识点和知识文档的链接。
+
+3. **跳过特定文件/文件夹**：
+   - 用户可以在插件设置中配置跳过包含特定字符串的文件或文件夹。
+
+#### 配置选项
+- **outputDirName**：知识库汇总文件夹的名称。
+- **skipSpecificNames**：跳过包含特定字符串的文件或文件夹。
+
+#### 示例代码
+以下是插件的核心代码片段，展示了如何初始化目录结构并生成 Markdown 文件：
+
+```typescript
+class DirectoryStructure {
+    folderName: string;
+    subfolders: DirectoryStructure[];
+    mdFiles: string[];
+
+    constructor(folderName: string) {
+        this.folderName = folderName;
+        this.subfolders = [];
+        this.mdFiles = [];
     }
 }
+
+const mySetting = (window as any).pluginSettings;
+
+export async function CreateKnowledgeStructureSummary(currentFile: TAbstractFile) {
+    // 初始化知识架构汇总环境
+    let IsInitFinish = await InitKnowledgeStructureSummaryEnv(currentFile);
+    if (!IsInitFinish) {
+        console.error("Failed to initialize knowledge structure summary environment.");
+        return;
+    }
+
+    // 初始化目录结构
+    const currentFolderDirectoryStructure = await initDirectoryStructure(currentFile);
+    if (!currentFolderDirectoryStructure) {
+        console.error("Failed to initialize directory structure.");
+        return;
+    }
+
+    console.log(currentFolderDirectoryStructure);
+
+    // 生成对应的 Markdown 文件
+    await generateMdFiles(currentFolderDirectoryStructure);
+}
 ```
 
-## API 文档
+#### 贡献
+欢迎提交 Issue 和 Pull Request 来改进插件功能。
 
-参见 https://github.com/obsidianmd/obsidian-api
+#### 许可证
+本插件采用 MIT 许可证。详细信息请参阅 [LICENSE](LICENSE) 文件。
+
+---
+
+通过以上 README，用户可以快速了解 FolderNodeLink 插件的功能、安装方法、使用说明以及配置选项。希望这能帮助用户更好地使用和理解插件。
