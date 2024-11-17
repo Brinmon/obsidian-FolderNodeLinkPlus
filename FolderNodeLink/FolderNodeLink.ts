@@ -2,7 +2,7 @@ import { log } from 'console';
 import { Notice,TFolder,TAbstractFile,TFile } from 'obsidian';
 
 // 全局调试标志
-let debugEnabled = true;
+let debugEnabled = false;
 
 // 自定义日志函数
 function logMessage(...args: any[]) {
@@ -81,14 +81,20 @@ export async function InitKnowledgeStructureSummaryEnv(currentFile: TAbstractFil
         return false; // 跳过这个文件夹
     }
 
-    const currentFolder = currentFile.parent.path; // 当前文件的父级目录
-    logMessage("当前文件的父级目录",currentFolder);
-    // 检查当前文件的父级目录是否为根目录
-    if (currentFolder !== rootPath) {
-        new Notice("只有根目录下的文件夹才可以创建知识库汇总文件");
+    //去除限制
+    // const currentFolder = currentFile.parent.path; // 当前文件的父级目录
+    // logMessage("当前文件的父级目录",currentFolder);
+    // // 检查当前文件的父级目录是否为根目录
+    // if (currentFolder !== rootPath) {
+    //     new Notice("只有根目录下的文件夹才可以创建知识库汇总文件");
+    //     return false;
+    // }
+
+    // 检查当前文件是否为文件夹
+    if (!(currentFile instanceof TFolder)) {
+        new Notice("当前文件必须是一个文件夹，无法继续操作。");
         return false;
     }
-
 
     // 检查是否已经存在“知识库汇总”文件夹
     const knowledgeBaseFolder = this.app.vault.getAbstractFileByPath(mySetting.outputDirName);
@@ -113,7 +119,7 @@ export async function InitKnowledgeStructureSummaryEnv(currentFile: TAbstractFil
 
 // 初始化目录结构体
 export async function initDirectoryStructure(currentFile: TAbstractFile): Promise<DirectoryStructure | null> {
-    console.log("初始化目录结构体");
+    logMessage("初始化目录结构体");
 
     // 检查传入的文件是否为文件夹
     const currentFolder = currentFile;
@@ -129,13 +135,13 @@ export async function initDirectoryStructure(currentFile: TAbstractFile): Promis
     // 递归读取文件夹及其子文件夹
     await traverseFolder(currentFolder, directoryStructure,mySetting.skipSpecificNames);
 
-    console.log("Directory structure initialized: ", directoryStructure);
+    logMessage("Directory structure initialized: ", directoryStructure);
     return directoryStructure;
 }
 
 // 递归读取文件夹及其子文件夹的文件
 async function traverseFolder(folder: TFolder, directoryStructure: DirectoryStructure, skipSpecificNames: string[]): Promise<void> {
-    console.log("递归读取文件夹及其子文件夹的文件");
+    logMessage("递归读取文件夹及其子文件夹的文件");
 
     for (let child of folder.children) {
         // 如果文件或文件夹名包含跳过的特定字符串，则跳过
@@ -145,9 +151,9 @@ async function traverseFolder(folder: TFolder, directoryStructure: DirectoryStru
             console.log(`跳过文件/文件夹: ${child.name}`);
             continue;
         }
-        console.log(shouldSkip);
+        logMessage(shouldSkip);
 
-        console.log(`未跳过的文件/文件夹: ${child.name}`);
+        logMessage(`未跳过的文件/文件夹: ${child.name}`);
 
         if (child instanceof TFile && child.extension === 'md') {
             // 如果是 Markdown 文件，则添加到 mdFiles 数组中
@@ -232,8 +238,8 @@ function extractKnowledgeSummary(content: string): string | null {
     const match = content.match(summaryRegex);
     
     // 打印调试信息
-    console.log("match: ", match);
-    console.log("summaryRegex: ", summaryRegex);
+    logMessage("match: ", match);
+    logMessage("summaryRegex: ", summaryRegex);
 
     // 返回匹配的内容或 null
     return match ? match[1].trim() : null;
@@ -245,6 +251,9 @@ function generateSubKnowledgePoints(subfolders: DirectoryStructure[]): string {
     let subKnowledgePoints = `${mySetting.subKnowledgePoints}\n`; // 使用插件设置中的值
     for (let subfolder of subfolders) {
         subKnowledgePoints += `- [[${subfolder.folderName}]]\n`;
+        for (let mdFile of subfolder.mdFiles) {
+            subKnowledgePoints += `  - [[${mdFile}]]\n`;
+        }
     }
     return subKnowledgePoints;
 }
