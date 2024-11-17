@@ -56,7 +56,6 @@ export default class MyPlugin extends Plugin {
               });
             })
         );
-
         // 添加设置标签页，用户可以在插件设置中修改参数
         this.addSettingTab(new MyPluginSettingsTab(this.app, this));
     }

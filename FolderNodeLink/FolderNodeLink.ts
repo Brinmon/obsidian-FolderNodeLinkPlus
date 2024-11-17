@@ -1,4 +1,14 @@
+import { log } from 'console';
 import { Notice,TFolder,TAbstractFile,TFile } from 'obsidian';
+
+// 全局调试标志
+let debugEnabled = true;
+
+// 自定义日志函数
+function logMessage(...args: any[]) {
+    if (!debugEnabled) return; // 如果禁用了调试，直接返回
+    console.log("[FolderNodeLinkPlus] info: ",...args); // 使用展开语法输出多个参数
+}
 
 class DirectoryStructure {
     folderName: string;
@@ -16,9 +26,10 @@ const mySetting = (window as any).pluginSettings;
 
 export async function CreateKnowledgeStructureSummary(currentFile: TAbstractFile) {
     // 通过全局对象访问设置
-
+    logMessage("CreateKnowledgeStructureSummary:开始汇总知识库信息!");
     // 初始化知识架构汇总环境
     let IsInitFinish =   await InitKnowledgeStructureSummaryEnv(currentFile);
+    
     if (!IsInitFinish) {
         console.error("Failed to initialize knowledge structure summary environment.");
         return;
@@ -27,11 +38,11 @@ export async function CreateKnowledgeStructureSummary(currentFile: TAbstractFile
     // 初始化目录结构
     const currentFolderDirectoryStructure = await initDirectoryStructure(currentFile);
     if (!currentFolderDirectoryStructure) {
-        console.error("Failed to initialize directory structure.");
+        console.error("Failed to initialize directory structure.", 'error');
         return;
     }
 
-    console.log(currentFolderDirectoryStructure);
+    logMessage(currentFolderDirectoryStructure);
 
     // 生成对应的 Markdown 文件
     await generateMdFiles(currentFolderDirectoryStructure);
@@ -41,12 +52,13 @@ export async function CreateKnowledgeStructureSummary(currentFile: TAbstractFile
 // 初始化知识架构汇总环境
 export async function InitKnowledgeStructureSummaryEnv(currentFile: TAbstractFile) {
     // 在这里实现创建知识架构汇总的逻辑
-    console.log("初始化知识架构汇总环境");
-
+    logMessage("InitKnowledgeStructureSummaryEnv:初始化知识架构汇总环境");
+    
     const rootPath = '/'; // 根目录路径
     const knowledgeBaseFolderName = mySetting.outputDirName   ; // 知识库汇总文件夹名称
     const knowledgeBaseFolderPath = `${knowledgeBaseFolderName}`;// 知识库汇总文件夹路径没有/
 
+    logMessage("知识库汇总文件夹路径", knowledgeBaseFolderPath);
     // 检查 currentFile.parent 是否为 null
     if (currentFile.parent == null) {
         new Notice("当前文件没有父级目录，无法继续操作。");
@@ -54,13 +66,14 @@ export async function InitKnowledgeStructureSummaryEnv(currentFile: TAbstractFil
     }
 
     const currentFolderName = currentFile.name; // 当前文件/文件夹的名称
-
+    logMessage("当前获取的文件/文件夹名称",currentFile.name);
     // 检查当前文件是否是“知识库汇总”目录
     if (currentFolderName === mySetting.outputDirName) {
         new Notice(`非"${mySetting.outputDirName}"目录下的文件夹才可以创建知识库汇总文件`);
         return false;
     }
     
+    logMessage("当前文件/文件夹的父级目录",currentFile.parent.path);
     // 如果文件或文件夹名包含跳过的特定字符串，则跳过
     const shouldSkip = mySetting.skipSpecificNames.some((skipName: string) => currentFolderName.includes(skipName));
     if (shouldSkip) {
@@ -69,7 +82,7 @@ export async function InitKnowledgeStructureSummaryEnv(currentFile: TAbstractFil
     }
 
     const currentFolder = currentFile.parent.path; // 当前文件的父级目录
-
+    logMessage("当前文件的父级目录",currentFolder);
     // 检查当前文件的父级目录是否为根目录
     if (currentFolder !== rootPath) {
         new Notice("只有根目录下的文件夹才可以创建知识库汇总文件");
@@ -79,7 +92,7 @@ export async function InitKnowledgeStructureSummaryEnv(currentFile: TAbstractFil
 
     // 检查是否已经存在“知识库汇总”文件夹
     const knowledgeBaseFolder = this.app.vault.getAbstractFileByPath(mySetting.outputDirName);
-
+    logMessage("知识库汇总文件夹", knowledgeBaseFolder);
     if (!knowledgeBaseFolder) {
         // 如果不存在，创建文件夹
         try {
@@ -94,7 +107,7 @@ export async function InitKnowledgeStructureSummaryEnv(currentFile: TAbstractFil
     }
 
     // 在此处可以继续添加关于创建知识架构汇总的其他逻辑
-    console.log("初始化知识架构汇总环境完成");
+    logMessage("初始化知识架构汇总环境完成Finsih!");
     return true;
 }
 
@@ -138,7 +151,10 @@ async function traverseFolder(folder: TFolder, directoryStructure: DirectoryStru
 
         if (child instanceof TFile && child.extension === 'md') {
             // 如果是 Markdown 文件，则添加到 mdFiles 数组中
-            directoryStructure.mdFiles.push(child.name);
+            // 去除 .md 后缀
+            const fileNameWithoutExtension = child.name.substring(0, child.name.length - 3); 
+            // 添加到 mdFiles 数组中
+            directoryStructure.mdFiles.push(fileNameWithoutExtension);
         } else if (child instanceof TFolder) {
             // 如果是子文件夹，则创建子文件夹结构体并递归读取其内容
             const subfolderStructure = new DirectoryStructure(child.name);
